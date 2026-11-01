@@ -28,7 +28,11 @@ describe("weekly quota", () => {
       percentRemaining: 66.01796194285714, nextRegenAt: "2026-10-30T02:27:29.000Z", nextRegenPercent: 2,
     } }).weekly!
     expect(weekly.percentRemaining.toFixed(2)).toBe("66.02")
-    expect(regenerationText(weekly, Date.parse("2026-10-30T01:50:29Z"))).toBe("Regenerates 2% in 37 min")
+    expect(regenerationText(weekly, Date.parse("2026-10-30T01:50:29Z"))).toBe("Regenerates 2% in 37m 0s")
+    expect(regenerationText(weekly, Date.parse("2026-10-30T01:25:22Z"))).toBe("Regenerates 2% in 1h 2m 7s")
+    expect(regenerationText(weekly, Date.parse("2026-10-30T02:27:28.500Z"))).toBe("Regenerates 2% in 1s")
+    expect(regenerationText(weekly, Date.parse("2026-10-29T01:25:22Z"))).toBe("Regenerates 2% in 1d 1h 2m 7s")
+    expect(regenerationText(weekly, Date.parse("2026-10-30T02:27:29Z"))).toBe("Regeneration due; waiting for update")
     expect(regenerationText(weekly, Date.parse("2026-10-30T02:28:00Z"))).toBe("Regeneration due; waiting for update")
   })
   test("handles missing and invalid fields without inventing weekly data", () => {

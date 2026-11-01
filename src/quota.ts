@@ -47,9 +47,13 @@ export function parseQuota(data: unknown): Quota {
 
 export function regenerationText(weekly: WeeklyQuota, now = Date.now()): string {
   if (!weekly.nextRegenAt || weekly.nextRegenPercent === null) return "Regeneration details unavailable"
-  const remaining = renewalText(weekly.nextRegenAt, now)
-  if (!remaining.startsWith("Renews in ")) return "Regeneration due; waiting for update"
-  return `Regenerates ${weekly.nextRegenPercent}% in ${remaining.slice("Renews in ".length)}`
+  const seconds = Math.ceil((Date.parse(weekly.nextRegenAt) - now) / 1000)
+  if (seconds <= 0) return "Regeneration due; waiting for update"
+  const days = Math.floor(seconds / 86400)
+  const hours = Math.floor(seconds % 86400 / 3600)
+  const minutes = Math.floor(seconds % 3600 / 60)
+  const remaining = [days ? `${days}d` : "", (days || hours) ? `${hours}h` : "", (days || hours || minutes) ? `${minutes}m` : "", `${seconds % 60}s`].filter(Boolean).join(" ")
+  return `Regenerates ${weekly.nextRegenPercent}% in ${remaining}`
 }
 
 export function renewalText(renewsAt: string | null, now = Date.now()): string {

@@ -8,13 +8,15 @@ test("resolves the active Synthetic key on the server and returns only quota dat
   let handler: ((input: unknown, context: { signal: AbortSignal }) => Promise<unknown>) | undefined
   const connection = { source: "test" }
   const context = {
+    options: {},
+    storage: { get: async () => undefined, set: async () => {} },
     integration: { connection: {
       active: async (id: string) => { expect(id).toBe("synthetic"); return connection },
       resolve: async (value: unknown) => { expect(value).toBe(connection); return { type: "key", key: "private-test-key" } },
     } },
     rpc: { register: async (_definition: unknown, handlers: { get: typeof handler }) => {
       handler = handlers.get
-      return { dispose: async () => {} }
+      return { dispose: async () => {}, events: { emit: async () => {} } }
     } },
   } as unknown as Parameters<typeof plugin.setup>[0]
   globalThis.fetch = (async (_input, init) => {
@@ -25,4 +27,29 @@ test("resolves the active Synthetic key on the server and returns only quota dat
   const result = await handler!({}, { signal: new AbortController().signal })
   expect(result).toEqual({ status: "", quota: { limit: 100, requests: 25, renewsAt: null, remainingPercent: 75, weekly: { percentRemaining: 66, nextRegenAt: "2026-10-30T02:27:29.000Z", nextRegenPercent: 2 } } })
   expect(JSON.stringify(result)).not.toContain("private-test-key")
+})
+
+test("persists refresh settings, publishes changes, and restores them on setup", async () => {
+  const saved = new Map<string, unknown>()
+  let handlers: Record<string, (...args: any[]) => Promise<any>> = {}
+  const emitted: unknown[] = []
+  const context = {
+    options: { refreshSeconds: 45 },
+    storage: { get: async (key: string) => saved.get(key), set: async (key: string, value: unknown) => { saved.set(key, value) } },
+    rpc: { register: async (_definition: unknown, methods: typeof handlers) => {
+      handlers = methods
+      return { dispose: async () => {}, events: { emit: async (name: string, value: unknown) => { emitted.push([name, value]) } } }
+    } },
+  } as unknown as Parameters<typeof plugin.setup>[0]
+  await plugin.setup(context)
+  expect(await handlers.settings()).toEqual({ refreshSeconds: 45, decimalPlaces: 2 })
+  expect(await handlers.configure({ refreshSeconds: 25 })).toEqual({ refreshSeconds: 25, decimalPlaces: 2 })
+  expect(await handlers.setDecimalPlaces({ decimalPlaces: 0 })).toEqual({ refreshSeconds: 25, decimalPlaces: 0 })
+  expect(saved.get("refreshSeconds")).toBe(25)
+  expect(saved.get("decimalPlaces")).toBe(0)
+  expect(emitted).toEqual([["settingsChanged", { refreshSeconds: 25, decimalPlaces: 2 }], ["settingsChanged", { refreshSeconds: 25, decimalPlaces: 0 }]])
+  await expect(handlers.configure({ refreshSeconds: 1 })).rejects.toThrow()
+  for (const decimalPlaces of [-1, 7, 1.5, NaN]) await expect(handlers.setDecimalPlaces({ decimalPlaces })).rejects.toThrow()
+  await plugin.setup(context)
+  expect(await handlers.settings()).toEqual({ refreshSeconds: 25, decimalPlaces: 0 })
 })

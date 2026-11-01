@@ -1,9 +1,25 @@
 import { Rpc } from "@opencode/plugin/rpc"
 
+const settingsSchema = { type: "object", properties: { refreshSeconds: { type: "number" }, decimalPlaces: { type: "integer" } }, required: ["refreshSeconds", "decimalPlaces"], additionalProperties: false } as const
+
 export const SyntheticQuota = Rpc.define({
   id: "synthetic.quota",
-  events: {},
+  events: {
+    settingsChanged: { schema: settingsSchema },
+  },
   methods: {
+    settings: {
+      input: { type: "object", additionalProperties: false },
+      output: settingsSchema,
+    },
+    configure: {
+      input: { type: "object", properties: { refreshSeconds: { type: "number", minimum: 10, maximum: 3600 } }, required: ["refreshSeconds"], additionalProperties: false },
+      output: settingsSchema,
+    },
+    setDecimalPlaces: {
+      input: { type: "object", properties: { decimalPlaces: { type: "integer", minimum: 0, maximum: 6 } }, required: ["decimalPlaces"], additionalProperties: false },
+      output: settingsSchema,
+    },
     get: {
       input: { type: "object", additionalProperties: false },
       output: {
