@@ -68,6 +68,33 @@ export function renewalText(renewsAt: string | null, now = Date.now()): string {
   return `Renews in ${days}d ${hours % 24}h`
 }
 
+export function resetText(resetsAt: string | null, now = Date.now(), showDate = true): string {
+  if (!resetsAt || !Number.isFinite(Date.parse(resetsAt))) return "Reset time unavailable"
+  const date = new Date(resetsAt)
+  const exact = date.toLocaleString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit", timeZoneName: "short" })
+  const seconds = Math.ceil((date.getTime() - now) / 1000)
+  if (seconds <= 0) return `Reset due${showDate ? ` (${exact})` : ""}; waiting for update`
+  const days = Math.floor(seconds / 86400)
+  const hours = Math.floor(seconds % 86400 / 3600)
+  const minutes = Math.floor(seconds % 3600 / 60)
+  const remaining = [days ? `${days}d` : "", (days || hours) ? `${hours}h` : "", `${minutes}m`, `${seconds % 60}s`].filter(Boolean).join(" ")
+  return `Resets in ${remaining}${showDate ? ` (${exact})` : ""}`
+}
+
+export function codexPercent(value: number, digits: number): string {
+  return Number.isInteger(value) ? String(value) : value.toFixed(digits)
+}
+
+// HSL hue from red through yellow to green, returned as hex for both UI renderers.
+export function quotaColor(percent: number): string {
+  const hue = Math.max(0, Math.min(100, Number.isFinite(percent) ? percent : 0)) * 1.2
+  const chroma = (1 - Math.abs(2 * 0.45 - 1)) * 0.75
+  const x = chroma * (1 - Math.abs((hue / 60) % 2 - 1))
+  const m = 0.45 - chroma / 2
+  const rgb = hue < 60 ? [chroma, x, 0] : [x, chroma, 0]
+  return `#${rgb.map((channel) => Math.round((channel + m) * 255).toString(16).padStart(2, "0")).join("")}`
+}
+
 export async function fetchQuota(key: string, signal?: AbortSignal): Promise<Quota> {
   const response = await fetch(QUOTA_URL, {
     headers: { Authorization: `Bearer ${key}` },

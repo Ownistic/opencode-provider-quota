@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { fetchQuota, parseQuota, QUOTA_URL, regenerationText, renewalText } from "../src/quota"
+import { codexPercent, fetchQuota, parseQuota, quotaColor, QUOTA_URL, regenerationText, renewalText, resetText } from "../src/quota"
 
 describe("subscription quota", () => {
   test("calculates and clamps remaining percentage", () => {
@@ -19,6 +19,33 @@ describe("subscription quota", () => {
     expect(renewalText("2025-09-22T15:00:00Z", now)).toBe("Renews in 1d 1h")
     expect(renewalText("2025-09-21T13:00:00Z", now)).toBe("Renewal due; waiting for update")
   })
+})
+
+test("formats Codex reset countdowns with seconds and a local exact timestamp", () => {
+  const timestamp = "2025-09-22T15:00:05Z"
+  const exact = new Date(timestamp).toLocaleString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit", timeZoneName: "short" })
+  expect(resetText(timestamp, Date.parse("2025-09-21T14:00:00Z"))).toBe(`Resets in 1d 1h 0m 5s (${exact})`)
+  expect(resetText(timestamp, Date.parse(timestamp))).toBe(`Reset due (${exact}); waiting for update`)
+  expect(resetText(timestamp, Date.parse("2025-09-21T14:00:00Z"), false)).toBe("Resets in 1d 1h 0m 5s")
+  expect(resetText(timestamp, Date.parse(timestamp), false)).toBe("Reset due; waiting for update")
+  expect(resetText(null)).toBe("Reset time unavailable")
+  expect(resetText("bad")).toBe("Reset time unavailable")
+})
+
+test("does not pad whole Codex percentages with decimals", () => {
+  expect(codexPercent(75, 2)).toBe("75")
+  expect(codexPercent(75.25, 2)).toBe("75.25")
+  expect(codexPercent(75.25, 1)).toBe("75.3")
+})
+
+test("colors quota from red through yellow to green and clamps invalid values", () => {
+  expect(quotaColor(0)).toBe("#c91d1d")
+  expect(quotaColor(50)).toBe("#c9c91d")
+  expect(quotaColor(100)).toBe("#1dc91d")
+  expect(quotaColor(-5)).toBe(quotaColor(0))
+  expect(quotaColor(105)).toBe(quotaColor(100))
+  expect(quotaColor(NaN)).toBe(quotaColor(0))
+  expect(quotaColor(25)).not.toBe(quotaColor(50))
 })
 
 describe("weekly quota", () => {

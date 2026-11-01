@@ -1,6 +1,6 @@
 import { Rpc } from "@opencode/plugin/rpc"
 
-const settingsSchema = { type: "object", properties: { refreshSeconds: { type: "number" }, decimalPlaces: { type: "integer" } }, required: ["refreshSeconds", "decimalPlaces"], additionalProperties: false } as const
+const settingsSchema = { type: "object", properties: { refreshSeconds: { type: "number" }, syntheticRefreshSeconds: { type: "number" }, codexRefreshSeconds: { type: "number" }, showCodexResetDate: { type: "boolean" }, decimalPlaces: { type: "integer" } }, required: ["refreshSeconds", "syntheticRefreshSeconds", "codexRefreshSeconds", "showCodexResetDate", "decimalPlaces"], additionalProperties: false } as const
 
 export const SyntheticQuota = Rpc.define({
   id: "synthetic.quota",
@@ -8,12 +8,32 @@ export const SyntheticQuota = Rpc.define({
     settingsChanged: { schema: settingsSchema },
   },
   methods: {
+    codex: {
+      input: { type: "object", additionalProperties: false },
+      output: {
+        type: "object", properties: {
+          status: { type: "string" },
+          windows: { type: "array", items: { type: "object", properties: {
+            label: { type: "string" }, remainingPercent: { type: "number" },
+            resetsAt: { anyOf: [{ type: "string" }, { type: "null" }] },
+          }, required: ["label", "remainingPercent", "resetsAt"], additionalProperties: false } },
+        }, required: ["status"], additionalProperties: false,
+      },
+    },
     settings: {
       input: { type: "object", additionalProperties: false },
       output: settingsSchema,
     },
     configure: {
       input: { type: "object", properties: { refreshSeconds: { type: "number", minimum: 10, maximum: 3600 } }, required: ["refreshSeconds"], additionalProperties: false },
+      output: settingsSchema,
+    },
+    setProviderRefresh: {
+      input: { type: "object", properties: { provider: { type: "string", enum: ["synthetic", "codex"] }, refreshSeconds: { type: "number", minimum: 10, maximum: 3600 } }, required: ["provider", "refreshSeconds"], additionalProperties: false },
+      output: settingsSchema,
+    },
+    setCodexResetDate: {
+      input: { type: "object", properties: { show: { type: "boolean" } }, required: ["show"], additionalProperties: false },
       output: settingsSchema,
     },
     setDecimalPlaces: {

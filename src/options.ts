@@ -22,3 +22,12 @@ export function refreshInterval(options: { readonly refreshSeconds?: unknown }):
     ? Math.round(value * 1000)
     : DEFAULT_REFRESH_SECONDS * 1000
 }
+
+export function providerRefreshInterval(options: { readonly refreshSeconds?: unknown; readonly syntheticRefreshSeconds?: unknown; readonly codexRefreshSeconds?: unknown }, provider: "synthetic" | "codex"): number {
+  const value = provider === "synthetic" ? options.syntheticRefreshSeconds : options.codexRefreshSeconds
+  return validRefreshSeconds(value) ? Math.round(value * 1000) : refreshInterval(options)
+}
+
+export function showCodexResetDate(options: { readonly showCodexResetDate?: unknown }): boolean {
+  return typeof options.showCodexResetDate === "boolean" ? options.showCodexResetDate : true
+}

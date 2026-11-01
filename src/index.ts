@@ -1,23 +1,58 @@
 import { Plugin } from "@opencode/plugin"
 import { fetchQuota, QuotaError } from "./quota"
+import { fetchCodexQuota } from "./codex"
 import { SyntheticQuota } from "./rpc"
-import { decimalPlaces as defaultDecimalPlaces, refreshInterval, validDecimalPlaces, validRefreshSeconds } from "./options"
+import { decimalPlaces as defaultDecimalPlaces, providerRefreshInterval, refreshInterval, showCodexResetDate as defaultShowCodexResetDate, validDecimalPlaces, validRefreshSeconds } from "./options"
 
 export default Plugin.define({
   id: "synthetic.quota.server",
   async setup(context) {
     const stored = await context.storage.get("refreshSeconds")
     let refreshSeconds = validRefreshSeconds(stored) ? stored : refreshInterval(context.options) / 1000
+    const storedSynthetic = await context.storage.get("syntheticRefreshSeconds")
+    const storedCodex = await context.storage.get("codexRefreshSeconds")
+    let syntheticRefreshSeconds = validRefreshSeconds(storedSynthetic) ? storedSynthetic : validRefreshSeconds(stored) ? stored : providerRefreshInterval(context.options, "synthetic") / 1000
+    let codexRefreshSeconds = validRefreshSeconds(storedCodex) ? storedCodex : validRefreshSeconds(stored) ? stored : providerRefreshInterval(context.options, "codex") / 1000
+    const storedShowDate = await context.storage.get("showCodexResetDate")
+    let showCodexResetDate = typeof storedShowDate === "boolean" ? storedShowDate : defaultShowCodexResetDate(context.options)
     const storedDigits = await context.storage.get("decimalPlaces")
     let decimalPlaces = validDecimalPlaces(storedDigits) ? storedDigits : defaultDecimalPlaces(context.options)
-    const settings = () => ({ refreshSeconds, decimalPlaces })
+    const settings = () => ({ refreshSeconds, syntheticRefreshSeconds, codexRefreshSeconds, showCodexResetDate, decimalPlaces })
     const registration = await context.rpc.register(SyntheticQuota, {
+      codex: async (_input, call) => {
+        try {
+          return { windows: await fetchCodexQuota(AbortSignal.any([call.signal, AbortSignal.timeout(10_000)])), status: "" }
+        } catch (error) {
+          return { status: error instanceof QuotaError ? error.message : "Codex quota request failed" }
+        }
+      },
       settings: async () => settings(),
       configure: async (input) => {
         const value = (input as { refreshSeconds: number }).refreshSeconds
         if (!validRefreshSeconds(value)) throw new Error("Invalid refresh interval")
         await context.storage.set("refreshSeconds", value)
+        await context.storage.set("syntheticRefreshSeconds", value)
+        await context.storage.set("codexRefreshSeconds", value)
         refreshSeconds = value
+        syntheticRefreshSeconds = value
+        codexRefreshSeconds = value
+        await registration.events.emit("settingsChanged", settings())
+        return settings()
+      },
+      setProviderRefresh: async (input) => {
+        const { provider, refreshSeconds: value } = input as { provider: string; refreshSeconds: number }
+        if ((provider !== "synthetic" && provider !== "codex") || !validRefreshSeconds(value)) throw new Error("Invalid provider refresh interval")
+        await context.storage.set(provider === "synthetic" ? "syntheticRefreshSeconds" : "codexRefreshSeconds", value)
+        if (provider === "synthetic") syntheticRefreshSeconds = value
+        else codexRefreshSeconds = value
+        await registration.events.emit("settingsChanged", settings())
+        return settings()
+      },
+      setCodexResetDate: async (input) => {
+        const value = (input as { show: unknown }).show
+        if (typeof value !== "boolean") throw new Error("Invalid Codex reset date setting")
+        await context.storage.set("showCodexResetDate", value)
+        showCodexResetDate = value
         await registration.events.emit("settingsChanged", settings())
         return settings()
       },
