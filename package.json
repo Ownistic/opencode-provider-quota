@@ -1,6 +1,8 @@
 {
   "name": "opencode-provider-quota",
   "version": "0.1.0",
+  "description": "Show Synthetic and Codex subscription quotas in OpenCode.",
+  "license": "LGPL-3.0-or-later",
   "type": "module",
   "private": true,
   "exports": {

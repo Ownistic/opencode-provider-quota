@@ -41,3 +41,7 @@ For Codex, the server starts `codex app-server` for each refresh, initializes it
 ## Development
 
 Run `bun test`, `bun run typecheck`, and `bun run build`. Rebuild the GUI bundle after Desktop changes.
+
+## License
+
+OpenCode Provider Quota is licensed under the [GNU Lesser General Public License, version 3 or later](LICENSE) (`LGPL-3.0-or-later`). The LGPL incorporates the terms of the [GNU General Public License, version 3](COPYING.GPL). Dependencies are distributed under their own licenses.
