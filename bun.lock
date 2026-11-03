@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "opencode-synthetic-quota",
+      "name": "opencode-provider-quota",
       "dependencies": {
         "@opencode/plugin": "2.2.1",
       },

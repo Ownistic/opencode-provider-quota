@@ -31,3 +31,7 @@ export function providerRefreshInterval(options: { readonly refreshSeconds?: unk
 export function showCodexResetDate(options: { readonly showCodexResetDate?: unknown }): boolean {
   return typeof options.showCodexResetDate === "boolean" ? options.showCodexResetDate : true
 }
+
+export function showSeconds(options: { readonly showSeconds?: unknown }): boolean {
+  return typeof options.showSeconds === "boolean" ? options.showSeconds : true
+}

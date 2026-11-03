@@ -2,7 +2,7 @@ import { Plugin } from "@opencode/plugin"
 import { fetchQuota, QuotaError } from "./quota"
 import { fetchCodexQuota } from "./codex"
 import { SyntheticQuota } from "./rpc"
-import { decimalPlaces as defaultDecimalPlaces, providerRefreshInterval, refreshInterval, showCodexResetDate as defaultShowCodexResetDate, validDecimalPlaces, validRefreshSeconds } from "./options"
+import { decimalPlaces as defaultDecimalPlaces, providerRefreshInterval, refreshInterval, showCodexResetDate as defaultShowCodexResetDate, showSeconds as defaultShowSeconds, validDecimalPlaces, validRefreshSeconds } from "./options"
 
 export default Plugin.define({
   id: "synthetic.quota.server",
@@ -15,9 +15,11 @@ export default Plugin.define({
     let codexRefreshSeconds = validRefreshSeconds(storedCodex) ? storedCodex : validRefreshSeconds(stored) ? stored : providerRefreshInterval(context.options, "codex") / 1000
     const storedShowDate = await context.storage.get("showCodexResetDate")
     let showCodexResetDate = typeof storedShowDate === "boolean" ? storedShowDate : defaultShowCodexResetDate(context.options)
+    const storedShowSeconds = await context.storage.get("showSeconds")
+    let showSeconds = typeof storedShowSeconds === "boolean" ? storedShowSeconds : defaultShowSeconds(context.options)
     const storedDigits = await context.storage.get("decimalPlaces")
     let decimalPlaces = validDecimalPlaces(storedDigits) ? storedDigits : defaultDecimalPlaces(context.options)
-    const settings = () => ({ refreshSeconds, syntheticRefreshSeconds, codexRefreshSeconds, showCodexResetDate, decimalPlaces })
+    const settings = () => ({ refreshSeconds, syntheticRefreshSeconds, codexRefreshSeconds, showCodexResetDate, showSeconds, decimalPlaces })
     const registration = await context.rpc.register(SyntheticQuota, {
       codex: async (_input, call) => {
         try {
@@ -53,6 +55,14 @@ export default Plugin.define({
         if (typeof value !== "boolean") throw new Error("Invalid Codex reset date setting")
         await context.storage.set("showCodexResetDate", value)
         showCodexResetDate = value
+        await registration.events.emit("settingsChanged", settings())
+        return settings()
+      },
+      setShowSeconds: async (input) => {
+        const value = (input as { show: unknown }).show
+        if (typeof value !== "boolean") throw new Error("Invalid seconds setting")
+        await context.storage.set("showSeconds", value)
+        showSeconds = value
         await registration.events.emit("settingsChanged", settings())
         return settings()
       },

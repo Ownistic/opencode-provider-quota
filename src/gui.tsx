@@ -1,6 +1,6 @@
 import { Panel, Plugin, type PanelTab } from "@opencode/plugin/gui"
 import { createEffect, createSignal, For, onCleanup, onMount, Show } from "solid-js"
-import { decimalPlaces, providerRefreshInterval, showCodexResetDate, validDecimalPlaces, validRefreshSeconds } from "./options"
+import { decimalPlaces, providerRefreshInterval, showCodexResetDate, showSeconds, validDecimalPlaces, validRefreshSeconds } from "./options"
 import { codexPercent, quotaColor, regenerationText, resetText, type Quota } from "./quota"
 import type { CodexWindow } from "./codex"
 import { SyntheticQuota } from "./rpc"
@@ -11,6 +11,7 @@ export default Plugin.define({
       const [syntheticInterval, setSyntheticInterval] = createSignal(providerRefreshInterval(ctx.options, "synthetic") / 1000)
       const [codexInterval, setCodexInterval] = createSignal(providerRefreshInterval(ctx.options, "codex") / 1000)
       const [showDate, setShowDate] = createSignal(showCodexResetDate(ctx.options))
+      const [seconds, setSeconds] = createSignal(showSeconds(ctx.options))
       const [digits, setDigits] = createSignal(decimalPlaces(ctx.options))
       const [quota, setQuota] = createSignal<Quota>()
       const [status, setStatus] = createSignal("Loading quota…")
@@ -50,20 +51,22 @@ export default Plugin.define({
         onCleanup(() => clearInterval(clock))
         const rpc = ctx.client.rpc(SyntheticQuota)
         const unsubscribe = rpc.events.on("settingsChanged", (event) => {
-          const value = event.data as { syntheticRefreshSeconds: number; codexRefreshSeconds: number; showCodexResetDate: boolean; decimalPlaces: number }
+          const value = event.data as { syntheticRefreshSeconds: number; codexRefreshSeconds: number; showCodexResetDate: boolean; showSeconds: boolean; decimalPlaces: number }
           settingsVersion++
           if (validRefreshSeconds(value.syntheticRefreshSeconds)) setSyntheticInterval(value.syntheticRefreshSeconds)
           if (validRefreshSeconds(value.codexRefreshSeconds)) setCodexInterval(value.codexRefreshSeconds)
           if (typeof value.showCodexResetDate === "boolean") setShowDate(value.showCodexResetDate)
+          if (typeof value.showSeconds === "boolean") setSeconds(value.showSeconds)
           if (validDecimalPlaces(value.decimalPlaces)) setDigits(value.decimalPlaces)
         })
         onCleanup(unsubscribe)
         void rpc.settings({}).then((result) => {
-          const value = result as { syntheticRefreshSeconds: number; codexRefreshSeconds: number; showCodexResetDate: boolean; decimalPlaces: number }
+          const value = result as { syntheticRefreshSeconds: number; codexRefreshSeconds: number; showCodexResetDate: boolean; showSeconds: boolean; decimalPlaces: number }
           if (disposed || settingsVersion !== 0) return
           if (validRefreshSeconds(value.syntheticRefreshSeconds)) setSyntheticInterval(value.syntheticRefreshSeconds)
           if (validRefreshSeconds(value.codexRefreshSeconds)) setCodexInterval(value.codexRefreshSeconds)
           if (typeof value.showCodexResetDate === "boolean") setShowDate(value.showCodexResetDate)
+          if (typeof value.showSeconds === "boolean") setSeconds(value.showSeconds)
           if (validDecimalPlaces(value.decimalPlaces)) setDigits(value.decimalPlaces)
         }).catch(() => {})
       })
@@ -92,7 +95,7 @@ export default Plugin.define({
                 <div role="progressbar" aria-label="Weekly credits remaining" aria-valuemin={0} aria-valuemax={100} aria-valuenow={weekly().percentRemaining} style={{ width: "100%", height: "6px", position: "relative", "border-radius": "3px", overflow: "hidden", background: "color-mix(in srgb, currentColor 18%, transparent)" }}>
                   <div style={{ width: `${weekly().percentRemaining}%`, height: "100%", background: quotaColor(weekly().percentRemaining) }} />
                 </div>
-                <p style={{ opacity: "0.75", "margin-top": "8px" }}>{regenerationText(weekly(), now())}</p>
+                <p style={{ opacity: "0.75", "margin-top": "8px" }}>{regenerationText(weekly(), now(), seconds())}</p>
               </>
             )}
           </Show>
@@ -105,7 +108,7 @@ export default Plugin.define({
             <div role="progressbar" aria-label={`${window.label} Codex quota remaining`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={window.remainingPercent} style={{ width: "100%", height: "6px", overflow: "hidden", background: "color-mix(in srgb, currentColor 18%, transparent)" }}>
               <div style={{ width: `${window.remainingPercent}%`, height: "100%", background: quotaColor(window.remainingPercent) }} />
             </div>
-            <p style={{ opacity: "0.75", "margin-top": "8px" }}>{resetText(window.resetsAt, now(), showDate())}</p>
+            <p style={{ opacity: "0.75", "margin-top": "8px" }}>{resetText(window.resetsAt, now(), showDate(), seconds())}</p>
           </div>}</For>
           <Show when={codexStatus()}><p role="status">{codex() ? `Stale: ${codexStatus()}` : codexStatus()}</p></Show>
         </section>

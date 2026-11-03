@@ -1,6 +1,6 @@
-# Provider quotas for OpenCode
+# OpenCode Provider Quota
 
-An OpenCode V2 plugin showing Synthetic weekly credits and Codex subscription rate-limit windows in the TUI sidebar and a pinned **Provider quotas** tab in the Desktop session side panel. Each provider reports its own status. It refreshes every minute while the view is mounted. The TUI sidebar appears when the terminal is wide enough and `session.sidebar` is not set to `hide`.
+OpenCode Provider Quota is an OpenCode V2 plugin that shows Synthetic weekly credits and Codex subscription rate-limit windows. It adds a TUI sidebar and a pinned **Provider quotas** tab in the Desktop session side panel. Each provider refreshes independently, every 60 seconds by default, while the view is mounted. The TUI sidebar appears when the terminal is wide enough and `session.sidebar` is not set to `hide`.
 
 ## Install locally
 
@@ -8,16 +8,16 @@ An OpenCode V2 plugin showing Synthetic weekly credits and Codex subscription ra
 2. Add this directory's absolute path to the existing `plugins` array in your project or global `opencode.json`:
 
    ```json
-   { "plugins": ["/absolute/path/to/SyntheticOpenCodeTUI"] }
+   { "plugins": ["/absolute/path/to/opencode-provider-quota"] }
    ```
 
-   Preserve any existing settings and plugin entries. The server part must be loaded through `opencode.json`; do not configure this as a CLI-only plugin.
+   Replace the example path with the actual directory path. Preserve existing settings and plugin entries. The server part must be loaded through `opencode.json`; do not configure this as a CLI-only plugin.
 3. For Synthetic, connect using OpenCode's normal provider sign-in. The plugin uses the active Synthetic API-key connection from the OpenCode server; no separate environment variable is required.
 4. For Codex, install the `codex` CLI on the machine running the OpenCode server, make it available on that server's PATH, and sign in to the CLI with a ChatGPT account with Codex access (`codex login`). The plugin reads the CLI's own account, which may differ from OpenCode's OpenAI connection. API-key authentication does not provide ChatGPT plan limits. In the TUI, open a session in a sufficiently wide terminal; in Desktop, select **Provider quotas** in the session side panel.
 
-## Refresh interval and manual refresh
+## Quota settings and display
 
-In the TUI, run `/synthetic-quota-settings` or select **Quota settings** in the command palette. Set the Synthetic and Codex refresh intervals independently, choose **Codex reset date** to show or hide the exact date (the countdown remains visible), or set **Decimal places** for both providers. Changes are saved by the OpenCode server and apply immediately to connected quota views on that server, including Desktop. Click the quota display in the TUI to request an immediate refresh of both providers. A request already in progress for that provider is not duplicated.
+In the TUI, run `/synthetic-quota-settings` or select **Quota settings** in the command palette. Set the Synthetic and Codex refresh intervals independently, choose **Codex reset date** to show or hide the exact date, toggle **Display seconds** for both providers, or set **Decimal places**. Seconds are shown by default. When hidden, countdowns round up to the next minute and the Codex reset date omits seconds. Changes are saved by the OpenCode server and apply immediately to connected quota views on that server, including Desktop. Click the TUI quota display to switch between extended and compact views. Compact view shows each available percentage and labels multiple Codex windows; errors and stale status remain visible. Display mode lasts for the current TUI plugin session. Automatic refresh continues in either mode, and a request already in progress for a provider is not duplicated.
 
 For decimal places, choose a whole number from 0 to 6; the default is 2. Codex percentages reported as whole numbers are shown without decimal places.
 
@@ -25,8 +25,8 @@ For an initial default before a value has been saved, replace the plugin's path 
 
 ```json
 {
-  "package": "/absolute/path/to/SyntheticOpenCodeTUI",
-  "options": { "syntheticRefreshSeconds": 30, "codexRefreshSeconds": 60, "showCodexResetDate": true, "decimalPlaces": 2 }
+  "package": "/absolute/path/to/opencode-provider-quota",
+  "options": { "syntheticRefreshSeconds": 30, "codexRefreshSeconds": 60, "showCodexResetDate": true, "showSeconds": true, "decimalPlaces": 2 }
 }
 ```
 

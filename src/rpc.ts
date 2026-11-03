@@ -1,6 +1,6 @@
 import { Rpc } from "@opencode/plugin/rpc"
 
-const settingsSchema = { type: "object", properties: { refreshSeconds: { type: "number" }, syntheticRefreshSeconds: { type: "number" }, codexRefreshSeconds: { type: "number" }, showCodexResetDate: { type: "boolean" }, decimalPlaces: { type: "integer" } }, required: ["refreshSeconds", "syntheticRefreshSeconds", "codexRefreshSeconds", "showCodexResetDate", "decimalPlaces"], additionalProperties: false } as const
+const settingsSchema = { type: "object", properties: { refreshSeconds: { type: "number" }, syntheticRefreshSeconds: { type: "number" }, codexRefreshSeconds: { type: "number" }, showCodexResetDate: { type: "boolean" }, showSeconds: { type: "boolean" }, decimalPlaces: { type: "integer" } }, required: ["refreshSeconds", "syntheticRefreshSeconds", "codexRefreshSeconds", "showCodexResetDate", "showSeconds", "decimalPlaces"], additionalProperties: false } as const
 
 export const SyntheticQuota = Rpc.define({
   id: "synthetic.quota",
@@ -33,6 +33,10 @@ export const SyntheticQuota = Rpc.define({
       output: settingsSchema,
     },
     setCodexResetDate: {
+      input: { type: "object", properties: { show: { type: "boolean" } }, required: ["show"], additionalProperties: false },
+      output: settingsSchema,
+    },
+    setShowSeconds: {
       input: { type: "object", properties: { show: { type: "boolean" } }, required: ["show"], additionalProperties: false },
       output: settingsSchema,
     },

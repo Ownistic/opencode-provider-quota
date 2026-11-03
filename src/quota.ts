@@ -45,14 +45,15 @@ export function parseQuota(data: unknown): Quota {
   }
 }
 
-export function regenerationText(weekly: WeeklyQuota, now = Date.now()): string {
+export function regenerationText(weekly: WeeklyQuota, now = Date.now(), showSeconds = true): string {
   if (!weekly.nextRegenAt || weekly.nextRegenPercent === null) return "Regeneration details unavailable"
   const seconds = Math.ceil((Date.parse(weekly.nextRegenAt) - now) / 1000)
   if (seconds <= 0) return "Regeneration due; waiting for update"
-  const days = Math.floor(seconds / 86400)
-  const hours = Math.floor(seconds % 86400 / 3600)
-  const minutes = Math.floor(seconds % 3600 / 60)
-  const remaining = [days ? `${days}d` : "", (days || hours) ? `${hours}h` : "", (days || hours || minutes) ? `${minutes}m` : "", `${seconds % 60}s`].filter(Boolean).join(" ")
+  const rounded = showSeconds ? seconds : Math.ceil(seconds / 60) * 60
+  const days = Math.floor(rounded / 86400)
+  const hours = Math.floor(rounded % 86400 / 3600)
+  const minutes = Math.floor(rounded % 3600 / 60)
+  const remaining = [days ? `${days}d` : "", (days || hours) ? `${hours}h` : "", (days || hours || minutes || !showSeconds) ? `${minutes}m` : "", showSeconds ? `${seconds % 60}s` : ""].filter(Boolean).join(" ")
   return `Regenerates ${weekly.nextRegenPercent}% in ${remaining}`
 }
 
@@ -68,21 +69,28 @@ export function renewalText(renewsAt: string | null, now = Date.now()): string {
   return `Renews in ${days}d ${hours % 24}h`
 }
 
-export function resetText(resetsAt: string | null, now = Date.now(), showDate = true): string {
+export function resetText(resetsAt: string | null, now = Date.now(), showDate = true, showSeconds = true): string {
   if (!resetsAt || !Number.isFinite(Date.parse(resetsAt))) return "Reset time unavailable"
   const date = new Date(resetsAt)
-  const exact = date.toLocaleString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit", timeZoneName: "short" })
+  const exact = date.toLocaleString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", ...(showSeconds ? { second: "2-digit" as const } : {}), timeZoneName: "short" })
   const seconds = Math.ceil((date.getTime() - now) / 1000)
   if (seconds <= 0) return `Reset due${showDate ? ` (${exact})` : ""}; waiting for update`
-  const days = Math.floor(seconds / 86400)
-  const hours = Math.floor(seconds % 86400 / 3600)
-  const minutes = Math.floor(seconds % 3600 / 60)
-  const remaining = [days ? `${days}d` : "", (days || hours) ? `${hours}h` : "", `${minutes}m`, `${seconds % 60}s`].filter(Boolean).join(" ")
+  const rounded = showSeconds ? seconds : Math.ceil(seconds / 60) * 60
+  const days = Math.floor(rounded / 86400)
+  const hours = Math.floor(rounded % 86400 / 3600)
+  const minutes = Math.floor(rounded % 3600 / 60)
+  const remaining = [days ? `${days}d` : "", (days || hours) ? `${hours}h` : "", `${minutes}m`, showSeconds ? `${seconds % 60}s` : ""].filter(Boolean).join(" ")
   return `Resets in ${remaining}${showDate ? ` (${exact})` : ""}`
 }
 
 export function codexPercent(value: number, digits: number): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(digits)
+}
+
+export function compactQuotaText(provider: string, percent: string | undefined, status: string): string {
+  return percent === undefined
+    ? `${provider}: ${status || "Quota unavailable"}`
+    : `${provider}: ${percent}%${status ? ` (stale: ${status})` : ""}`
 }
 
 // HSL hue from red through yellow to green, returned as hex for both UI renderers.

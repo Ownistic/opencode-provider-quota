@@ -1,10 +1,10 @@
 import { Plugin } from "@opencode/plugin/tui"
 import { TextAttributes } from "@opentui/core"
 import { createEffect, createSignal, For, onCleanup, onMount, Show } from "solid-js"
-import { codexPercent, quotaColor, regenerationText, resetText, type Quota } from "./quota"
+import { codexPercent, compactQuotaText, quotaColor, regenerationText, resetText, type Quota } from "./quota"
 import type { CodexWindow } from "./codex"
 import { SyntheticQuota } from "./rpc"
-import { decimalPlaces, providerRefreshInterval, showCodexResetDate, validDecimalPlaces, validRefreshSeconds } from "./options"
+import { decimalPlaces, providerRefreshInterval, showCodexResetDate, showSeconds, validDecimalPlaces, validRefreshSeconds } from "./options"
 
 export default Plugin.define({
   id: "synthetic.quota",
@@ -12,23 +12,27 @@ export default Plugin.define({
     const [syntheticInterval, setSyntheticInterval] = createSignal(providerRefreshInterval(context.options, "synthetic") / 1000)
     const [codexInterval, setCodexInterval] = createSignal(providerRefreshInterval(context.options, "codex") / 1000)
     const [showDate, setShowDate] = createSignal(showCodexResetDate(context.options))
+    const [seconds, setSeconds] = createSignal(showSeconds(context.options))
     const [digits, setDigits] = createSignal(decimalPlaces(context.options))
+    const [compact, setCompact] = createSignal(false)
     let settingsVersion = 0
     const rpc = context.client.rpc(SyntheticQuota)
     const unsubscribe = rpc.events.on("settingsChanged", (event) => {
-      const value = event.data as { syntheticRefreshSeconds: number; codexRefreshSeconds: number; showCodexResetDate: boolean; decimalPlaces: number }
+      const value = event.data as { syntheticRefreshSeconds: number; codexRefreshSeconds: number; showCodexResetDate: boolean; showSeconds: boolean; decimalPlaces: number }
       settingsVersion++
       if (validRefreshSeconds(value.syntheticRefreshSeconds)) setSyntheticInterval(value.syntheticRefreshSeconds)
       if (validRefreshSeconds(value.codexRefreshSeconds)) setCodexInterval(value.codexRefreshSeconds)
       if (typeof value.showCodexResetDate === "boolean") setShowDate(value.showCodexResetDate)
+      if (typeof value.showSeconds === "boolean") setSeconds(value.showSeconds)
       if (validDecimalPlaces(value.decimalPlaces)) setDigits(value.decimalPlaces)
     })
     void rpc.settings({}).then((result) => {
-      const value = result as { syntheticRefreshSeconds: number; codexRefreshSeconds: number; showCodexResetDate: boolean; decimalPlaces: number }
+      const value = result as { syntheticRefreshSeconds: number; codexRefreshSeconds: number; showCodexResetDate: boolean; showSeconds: boolean; decimalPlaces: number }
       if (settingsVersion !== 0) return
       if (validRefreshSeconds(value.syntheticRefreshSeconds)) setSyntheticInterval(value.syntheticRefreshSeconds)
       if (validRefreshSeconds(value.codexRefreshSeconds)) setCodexInterval(value.codexRefreshSeconds)
       if (typeof value.showCodexResetDate === "boolean") setShowDate(value.showCodexResetDate)
+      if (typeof value.showSeconds === "boolean") setSeconds(value.showSeconds)
       if (validDecimalPlaces(value.decimalPlaces)) setDigits(value.decimalPlaces)
     }).catch(() => {})
     context.keymap.layer(() => ({
@@ -46,10 +50,20 @@ export default Plugin.define({
               { title: "Synthetic refresh interval", description: `${syntheticInterval()} seconds`, value: "synthetic" },
               { title: "Codex refresh interval", description: `${codexInterval()} seconds`, value: "codex" },
               { title: "Codex reset date", description: showDate() ? "Shown" : "Hidden", value: "date" },
+              { title: "Display seconds", description: seconds() ? "Shown" : "Hidden", value: "seconds" },
               { title: "Decimal places", description: String(digits()), value: "decimals" },
             ],
           })
           if (!choice) return
+          if (choice === "seconds") {
+            try {
+              const next = !seconds()
+              await rpc.setShowSeconds({ show: next })
+              setSeconds(next)
+              context.ui.toast.show({ message: `Seconds ${next ? "shown" : "hidden"}`, variant: "success" })
+            } catch { context.ui.toast.show({ message: "Could not save quota settings", variant: "error" }) }
+            return
+          }
           if (choice === "date") {
             try {
               const next = !showDate()
@@ -94,6 +108,7 @@ export default Plugin.define({
       let fetchingSynthetic = false
       let fetchingCodex = false
       let disposed = false
+      let dragging = false
 
       async function refreshSynthetic() {
         setNow(Date.now())
@@ -135,35 +150,45 @@ export default Plugin.define({
       })
 
       return (
-        <box flexDirection="column" paddingLeft={1} paddingRight={1} marginTop={1} onMouseUp={(event) => { if (event.button === 0 && !event.isDragging) { void refreshSynthetic(); void refreshCodex() } }}>
-          <text fg={context.theme.text.base} attributes={TextAttributes.BOLD}>Synthetic quota</text>
+        <box flexDirection="column" paddingLeft={1} paddingRight={1} marginTop={1}
+          onMouseDown={() => { dragging = false }}
+          onMouseDrag={() => { dragging = true }}
+          onMouseUp={(event) => { if (event.button === 0 && !event.isDragging && !dragging) setCompact(!compact()) }}>
+          <Show when={compact()} fallback={<>
+          <text selectable={false} fg={context.theme.text.base} attributes={TextAttributes.BOLD}>Synthetic quota</text>
           <Show when={quota()}>
             {(value) => (
               <>
-                <Show when={value().weekly} fallback={<text fg={context.theme.text.base}>Weekly quota unavailable</text>}>
+                <Show when={value().weekly} fallback={<text selectable={false} fg={context.theme.text.base}>Weekly quota unavailable</text>}>
                   {(weekly) => (
                     <>
-                      <text fg={context.theme.text.base}>Weekly remaining: {weekly().percentRemaining.toFixed(digits())}%</text>
+                      <text selectable={false} fg={context.theme.text.base}>Weekly remaining: {weekly().percentRemaining.toFixed(digits())}%</text>
                       <box width="100%" height={1} backgroundColor={context.theme.text.muted}>
                         <box width={`${weekly().percentRemaining}%`} height={1} backgroundColor={quotaColor(weekly().percentRemaining)} />
                       </box>
-                      <text fg={context.theme.text.muted}>{regenerationText(weekly(), now())}</text>
+                      <text selectable={false} fg={context.theme.text.muted}>{regenerationText(weekly(), now(), seconds())}</text>
                     </>
                   )}
                 </Show>
               </>
             )}
           </Show>
-          <Show when={status()}><text fg={context.theme.text.base}>{quota() ? `Stale: ${status()}` : status()}</text></Show>
-          <text fg={context.theme.text.base} attributes={TextAttributes.BOLD}>Codex quota</text>
+          <Show when={status()}><text selectable={false} fg={context.theme.text.base}>{quota() ? `Stale: ${status()}` : status()}</text></Show>
+          <text selectable={false} fg={context.theme.text.base} attributes={TextAttributes.BOLD}>Codex quota</text>
           <For each={codex()}>{(window) => <>
-            <text fg={context.theme.text.base}>{window.label} remaining: {codexPercent(window.remainingPercent, digits())}%</text>
+            <text selectable={false} fg={context.theme.text.base}>{window.label} remaining: {codexPercent(window.remainingPercent, digits())}%</text>
             <box width="100%" height={1} backgroundColor={context.theme.text.muted}>
               <box width={`${window.remainingPercent}%`} height={1} backgroundColor={quotaColor(window.remainingPercent)} />
             </box>
-            <text fg={context.theme.text.muted}>{resetText(window.resetsAt, now(), showDate())}</text>
+            <text selectable={false} fg={context.theme.text.muted}>{resetText(window.resetsAt, now(), showDate(), seconds())}</text>
           </>}</For>
-          <Show when={codexStatus()}><text fg={context.theme.text.base}>{codex() ? `Stale: ${codexStatus()}` : codexStatus()}</text></Show>
+          <Show when={codexStatus()}><text selectable={false} fg={context.theme.text.base}>{codex() ? `Stale: ${codexStatus()}` : codexStatus()}</text></Show>
+          </>}>
+            <text selectable={false} fg={context.theme.text.base}>{compactQuotaText("Synthetic", quota()?.weekly?.percentRemaining.toFixed(digits()), status())}</text>
+            <Show when={codex()?.length} fallback={<text selectable={false} fg={context.theme.text.base}>{compactQuotaText("Codex", undefined, codexStatus())}</text>}>
+              <For each={codex()}>{(window) => <text selectable={false} fg={context.theme.text.base}>{compactQuotaText(codex()!.length > 1 ? `Codex ${window.label}` : "Codex", codexPercent(window.remainingPercent, digits()), codexStatus())}</text>}</For>
+            </Show>
+          </Show>
         </box>
       )
     }

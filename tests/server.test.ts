@@ -42,21 +42,24 @@ test("persists refresh settings, publishes changes, and restores them on setup",
     } },
   } as unknown as Parameters<typeof plugin.setup>[0]
   await plugin.setup(context)
-  const initial = { refreshSeconds: 45, syntheticRefreshSeconds: 45, codexRefreshSeconds: 45, showCodexResetDate: true, decimalPlaces: 2 }
+  const initial = { refreshSeconds: 45, syntheticRefreshSeconds: 45, codexRefreshSeconds: 45, showCodexResetDate: true, showSeconds: true, decimalPlaces: 2 }
   expect(await handlers.settings()).toEqual(initial)
   const legacy = { ...initial, refreshSeconds: 25, syntheticRefreshSeconds: 25, codexRefreshSeconds: 25 }
   expect(await handlers.configure({ refreshSeconds: 25 })).toEqual(legacy)
   expect(await handlers.setProviderRefresh({ provider: "codex", refreshSeconds: 90 })).toEqual({ ...legacy, codexRefreshSeconds: 90 })
   expect(await handlers.setCodexResetDate({ show: false })).toEqual({ ...legacy, codexRefreshSeconds: 90, showCodexResetDate: false })
-  const final = { ...legacy, codexRefreshSeconds: 90, showCodexResetDate: false, decimalPlaces: 0 }
+  const withoutSeconds = { ...legacy, codexRefreshSeconds: 90, showCodexResetDate: false, showSeconds: false }
+  expect(await handlers.setShowSeconds({ show: false })).toEqual(withoutSeconds)
+  const final = { ...withoutSeconds, decimalPlaces: 0 }
   expect(await handlers.setDecimalPlaces({ decimalPlaces: 0 })).toEqual(final)
   expect(saved.get("refreshSeconds")).toBe(25)
   expect(saved.get("decimalPlaces")).toBe(0)
-  expect(emitted).toEqual([["settingsChanged", legacy], ["settingsChanged", { ...legacy, codexRefreshSeconds: 90 }], ["settingsChanged", { ...legacy, codexRefreshSeconds: 90, showCodexResetDate: false }], ["settingsChanged", final]])
+  expect(emitted).toEqual([["settingsChanged", legacy], ["settingsChanged", { ...legacy, codexRefreshSeconds: 90 }], ["settingsChanged", { ...legacy, codexRefreshSeconds: 90, showCodexResetDate: false }], ["settingsChanged", withoutSeconds], ["settingsChanged", final]])
   await expect(handlers.configure({ refreshSeconds: 1 })).rejects.toThrow()
   await expect(handlers.setProviderRefresh({ provider: "other", refreshSeconds: 30 })).rejects.toThrow()
   await expect(handlers.setProviderRefresh({ provider: "codex", refreshSeconds: 1 })).rejects.toThrow()
   await expect(handlers.setCodexResetDate({ show: "false" })).rejects.toThrow()
+  await expect(handlers.setShowSeconds({ show: "false" })).rejects.toThrow()
   for (const decimalPlaces of [-1, 7, 1.5, NaN]) await expect(handlers.setDecimalPlaces({ decimalPlaces })).rejects.toThrow()
   await plugin.setup(context)
   expect(await handlers.settings()).toEqual(final)
@@ -71,8 +74,8 @@ test("migrates the saved legacy interval independently and honors new defaults",
     rpc: { register: async (_definition: unknown, methods: typeof handlers) => { handlers = methods; return { dispose: async () => {}, events: { emit: async () => {} } } } },
   } as unknown as Parameters<typeof plugin.setup>[0]
   await plugin.setup(context)
-  expect(await handlers.settings()).toEqual({ refreshSeconds: 35, syntheticRefreshSeconds: 20, codexRefreshSeconds: 35, showCodexResetDate: false, decimalPlaces: 2 })
+  expect(await handlers.settings()).toEqual({ refreshSeconds: 35, syntheticRefreshSeconds: 20, codexRefreshSeconds: 35, showCodexResetDate: false, showSeconds: true, decimalPlaces: 2 })
   saved.clear()
   await plugin.setup(context)
-  expect(await handlers.settings()).toEqual({ refreshSeconds: 60, syntheticRefreshSeconds: 15, codexRefreshSeconds: 80, showCodexResetDate: false, decimalPlaces: 2 })
+  expect(await handlers.settings()).toEqual({ refreshSeconds: 60, syntheticRefreshSeconds: 15, codexRefreshSeconds: 80, showCodexResetDate: false, showSeconds: true, decimalPlaces: 2 })
 })
