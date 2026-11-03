@@ -17,6 +17,8 @@ export default Plugin.define({
       const [status, setStatus] = createSignal("Loading quota…")
       const [codex, setCodex] = createSignal<CodexWindow[]>()
       const [codexStatus, setCodexStatus] = createSignal("Loading quota…")
+      const [syntheticAvailable, setSyntheticAvailable] = createSignal<boolean>()
+      const [codexAvailable, setCodexAvailable] = createSignal<boolean>()
       const [now, setNow] = createSignal(Date.now())
       let fetchingSynthetic = false
       let fetchingCodex = false
@@ -28,9 +30,9 @@ export default Plugin.define({
         if (fetchingSynthetic) return
         fetchingSynthetic = true
         try {
-          const result = await ctx.client.rpc(SyntheticQuota).get({}) as { quota?: Quota; status: string }
-          if (!disposed) { if (result.quota) setQuota(result.quota); setStatus(result.status) }
-        } catch { if (!disposed) setStatus("Quota service unavailable") }
+          const result = await ctx.client.rpc(SyntheticQuota).get({}) as { quota?: Quota; status: string; unavailable?: boolean }
+          if (!disposed) { setSyntheticAvailable(!result.unavailable); if (result.unavailable) setQuota(undefined); else if (result.quota) setQuota(result.quota); setStatus(result.status) }
+        } catch { if (!disposed) { setSyntheticAvailable(true); setStatus("Quota service unavailable") } }
         finally { fetchingSynthetic = false }
       }
       async function refreshCodex() {
@@ -38,9 +40,9 @@ export default Plugin.define({
         if (fetchingCodex) return
         fetchingCodex = true
         try {
-          const result = await ctx.client.rpc(SyntheticQuota).codex({}) as { windows?: CodexWindow[]; status: string }
-          if (!disposed) { if (result.windows) setCodex(result.windows); setCodexStatus(result.status) }
-        } catch { if (!disposed) setCodexStatus("Quota service unavailable") }
+          const result = await ctx.client.rpc(SyntheticQuota).codex({}) as { windows?: CodexWindow[]; status: string; unavailable?: boolean }
+          if (!disposed) { setCodexAvailable(!result.unavailable); if (result.unavailable) setCodex(undefined); else if (result.windows) setCodex(result.windows); setCodexStatus(result.status) }
+        } catch { if (!disposed) { setCodexAvailable(true); setCodexStatus("Quota service unavailable") } }
         finally { fetchingCodex = false }
       }
 
@@ -84,6 +86,9 @@ export default Plugin.define({
 
       return (
         <section style={{ padding: "16px", color: "inherit", "font-size": "13px" }} aria-label="Provider quotas">
+          <Show when={syntheticAvailable() === undefined || codexAvailable() === undefined}><p role="status">Checking providers…</p></Show>
+          <Show when={syntheticAvailable() === false && codexAvailable() === false}><p role="status">No quota providers connected. Connect Synthetic in OpenCode or sign in to Codex with ChatGPT.</p></Show>
+          <Show when={syntheticAvailable()}>
           <h3 style={{ "font-weight": "bold" }}>Synthetic quota</h3>
           <Show when={quota()?.weekly} fallback={<p>{quota() ? "Weekly quota unavailable" : status()}</p>}>
             {(weekly) => (
@@ -100,6 +105,8 @@ export default Plugin.define({
             )}
           </Show>
           <Show when={status() && quota()}><p role="status">Stale: {status()}</p></Show>
+          </Show>
+          <Show when={codexAvailable()}>
           <h3 style={{ "font-weight": "bold" }}>Codex quota</h3>
           <For each={codex()}>{(window) => <div style={{ "margin-bottom": "12px" }}>
             <div style={{ display: "flex", "justify-content": "space-between", gap: "12px", "margin-bottom": "8px" }}>
@@ -111,6 +118,7 @@ export default Plugin.define({
             <p style={{ opacity: "0.75", "margin-top": "8px" }}>{resetText(window.resetsAt, now(), showDate(), seconds())}</p>
           </div>}</For>
           <Show when={codexStatus()}><p role="status">{codex() ? `Stale: ${codexStatus()}` : codexStatus()}</p></Show>
+          </Show>
         </section>
       )
     }

@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test"
-import { fetchCodexQuota, parseCodexQuota } from "../src/codex"
+import { CodexUnavailableError, fetchCodexQuota, parseCodexQuota } from "../src/codex"
 
 test("parses Codex windows and prefers the codex bucket", () => {
   expect(parseCodexQuota({ rateLimits: { primary: { usedPercent: 99 } }, rateLimitsByLimitId: { codex: {
@@ -26,6 +26,21 @@ test("performs the initialization handshake with a CLI process", async () => {
 })
 
 test("reports missing CLI and cancellation without leaking process output", async () => {
-  await expect(fetchCodexQuota(AbortSignal.timeout(3000), "/does-not-exist/codex")).rejects.toThrow("Could not start Codex CLI")
+  await expect(fetchCodexQuota(AbortSignal.timeout(3000), "/does-not-exist/codex")).rejects.toThrow("Codex CLI not installed")
   await expect(fetchCodexQuota(AbortSignal.abort())).rejects.toThrow("cancelled")
+})
+
+test("only treats known missing or unsupported authentication as unavailable", async () => {
+  const original = process.env.QUOTA_TEST_ACCOUNT
+  try {
+    for (const type of ["none", "apiKey", "amazonBedrock"]) {
+      process.env.QUOTA_TEST_ACCOUNT = type
+      await expect(fetchCodexQuota(AbortSignal.timeout(3000), new URL("./fixtures/codex-mock.js", import.meta.url).pathname)).rejects.toBeInstanceOf(CodexUnavailableError)
+    }
+    process.env.QUOTA_TEST_ACCOUNT = "futureAccount"
+    await expect(fetchCodexQuota(AbortSignal.timeout(3000), new URL("./fixtures/codex-mock.js", import.meta.url).pathname)).rejects.toThrow("Unsupported Codex account")
+  } finally {
+    if (original === undefined) delete process.env.QUOTA_TEST_ACCOUNT
+    else process.env.QUOTA_TEST_ACCOUNT = original
+  }
 })

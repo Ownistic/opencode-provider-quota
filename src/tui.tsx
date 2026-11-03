@@ -104,6 +104,8 @@ export default Plugin.define({
       const [status, setStatus] = createSignal("Loading quota…")
       const [codex, setCodex] = createSignal<CodexWindow[]>()
       const [codexStatus, setCodexStatus] = createSignal("Loading quota…")
+      const [syntheticAvailable, setSyntheticAvailable] = createSignal<boolean>()
+      const [codexAvailable, setCodexAvailable] = createSignal<boolean>()
       const [now, setNow] = createSignal(Date.now())
       let fetchingSynthetic = false
       let fetchingCodex = false
@@ -115,9 +117,9 @@ export default Plugin.define({
         if (fetchingSynthetic) return
         fetchingSynthetic = true
         try {
-          const result = await context.client.rpc(SyntheticQuota).get({}) as { quota?: Quota; status: string }
-          if (!disposed) { if (result.quota) setQuota(result.quota); setStatus(result.status) }
-        } catch { if (!disposed) setStatus("Quota service unavailable") }
+          const result = await context.client.rpc(SyntheticQuota).get({}) as { quota?: Quota; status: string; unavailable?: boolean }
+          if (!disposed) { setSyntheticAvailable(!result.unavailable); if (result.unavailable) setQuota(undefined); else if (result.quota) setQuota(result.quota); setStatus(result.status) }
+        } catch { if (!disposed) { setSyntheticAvailable(true); setStatus("Quota service unavailable") } }
         finally { fetchingSynthetic = false }
       }
       async function refreshCodex() {
@@ -125,9 +127,9 @@ export default Plugin.define({
         if (fetchingCodex) return
         fetchingCodex = true
         try {
-          const result = await context.client.rpc(SyntheticQuota).codex({}) as { windows?: CodexWindow[]; status: string }
-          if (!disposed) { if (result.windows) setCodex(result.windows); setCodexStatus(result.status) }
-        } catch { if (!disposed) setCodexStatus("Quota service unavailable") }
+          const result = await context.client.rpc(SyntheticQuota).codex({}) as { windows?: CodexWindow[]; status: string; unavailable?: boolean }
+          if (!disposed) { setCodexAvailable(!result.unavailable); if (result.unavailable) setCodex(undefined); else if (result.windows) setCodex(result.windows); setCodexStatus(result.status) }
+        } catch { if (!disposed) { setCodexAvailable(true); setCodexStatus("Quota service unavailable") } }
         finally { fetchingCodex = false }
       }
 
@@ -154,7 +156,10 @@ export default Plugin.define({
           onMouseDown={() => { dragging = false }}
           onMouseDrag={() => { dragging = true }}
           onMouseUp={(event) => { if (event.button === 0 && !event.isDragging && !dragging) setCompact(!compact()) }}>
+          <Show when={syntheticAvailable() === undefined || codexAvailable() === undefined}><text selectable={false} fg={context.theme.text.muted}>Checking providers…</text></Show>
+          <Show when={syntheticAvailable() === false && codexAvailable() === false}><text selectable={false} fg={context.theme.text.muted}>No quota providers connected</text></Show>
           <Show when={compact()} fallback={<>
+          <Show when={syntheticAvailable()}>
           <text selectable={false} fg={context.theme.text.base} attributes={TextAttributes.BOLD}>Synthetic quota</text>
           <Show when={quota()}>
             {(value) => (
@@ -174,6 +179,8 @@ export default Plugin.define({
             )}
           </Show>
           <Show when={status()}><text selectable={false} fg={context.theme.text.base}>{quota() ? `Stale: ${status()}` : status()}</text></Show>
+          </Show>
+          <Show when={codexAvailable()}>
           <text selectable={false} fg={context.theme.text.base} attributes={TextAttributes.BOLD}>Codex quota</text>
           <For each={codex()}>{(window) => <>
             <text selectable={false} fg={context.theme.text.base}>{window.label} remaining: {codexPercent(window.remainingPercent, digits())}%</text>
@@ -183,10 +190,15 @@ export default Plugin.define({
             <text selectable={false} fg={context.theme.text.muted}>{resetText(window.resetsAt, now(), showDate(), seconds())}</text>
           </>}</For>
           <Show when={codexStatus()}><text selectable={false} fg={context.theme.text.base}>{codex() ? `Stale: ${codexStatus()}` : codexStatus()}</text></Show>
+          </Show>
           </>}>
+            <Show when={syntheticAvailable()}>
             <text selectable={false} fg={context.theme.text.base}>{compactQuotaText("Synthetic", quota()?.weekly?.percentRemaining.toFixed(digits()), status())}</text>
+            </Show>
+            <Show when={codexAvailable()}>
             <Show when={codex()?.length} fallback={<text selectable={false} fg={context.theme.text.base}>{compactQuotaText("Codex", undefined, codexStatus())}</text>}>
               <For each={codex()}>{(window) => <text selectable={false} fg={context.theme.text.base}>{compactQuotaText(codex()!.length > 1 ? `Codex ${window.label}` : "Codex", codexPercent(window.remainingPercent, digits()), codexStatus())}</text>}</For>
+            </Show>
             </Show>
           </Show>
         </box>

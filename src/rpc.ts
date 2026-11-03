@@ -12,7 +12,7 @@ export const SyntheticQuota = Rpc.define({
       input: { type: "object", additionalProperties: false },
       output: {
         type: "object", properties: {
-          status: { type: "string" },
+          status: { type: "string" }, unavailable: { type: "boolean" },
           windows: { type: "array", items: { type: "object", properties: {
             label: { type: "string" }, remainingPercent: { type: "number" },
             resetsAt: { anyOf: [{ type: "string" }, { type: "null" }] },
@@ -49,7 +49,7 @@ export const SyntheticQuota = Rpc.define({
       output: {
         type: "object",
         properties: {
-          status: { type: "string" },
+          status: { type: "string" }, unavailable: { type: "boolean" },
           quota: {
             type: "object",
             properties: {

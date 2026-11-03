@@ -2,6 +2,8 @@
 
 OpenCode Provider Quota is an OpenCode V2 plugin that shows Synthetic weekly credits and Codex subscription rate-limit windows. It adds a TUI sidebar and a pinned **Provider quotas** tab in the Desktop session side panel. Each provider refreshes independently, every 60 seconds by default, while the view is mounted. The TUI sidebar appears when the terminal is wide enough and `session.sidebar` is not set to `hide`.
 
+The views hide Synthetic when no connection is configured and Codex when its CLI is missing or its active account is not a ChatGPT account. If neither is available, a connection message appears. The plugin keeps checking on each provider's refresh interval, so newly connected providers appear automatically. Other errors remain visible, and previously fetched quotas are marked stale after a failed refresh.
+
 ## Install locally
 
 1. Install dependencies with `bun install` and build the Desktop bundle with `bun run build`.

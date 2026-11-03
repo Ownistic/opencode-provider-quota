@@ -8,6 +8,8 @@ export interface CodexWindow {
   resetsAt: string | null
 }
 
+export class CodexUnavailableError extends QuotaError {}
+
 export function parseCodexQuota(data: unknown): CodexWindow[] {
   if (!data || typeof data !== "object") throw new QuotaError("Codex quota unavailable")
   const result = data as Record<string, any>
@@ -46,7 +48,7 @@ export function fetchCodexQuota(signal: AbortSignal, command = "codex"): Promise
     }
     const abort = () => finish(new QuotaError("Codex quota request timed out or cancelled"))
     signal.addEventListener("abort", abort, { once: true })
-    child.on("error", () => finish(new QuotaError("Could not start Codex CLI")))
+    child.on("error", (error: NodeJS.ErrnoException) => finish(error.code === "ENOENT" ? new CodexUnavailableError("Codex CLI not installed") : new QuotaError("Could not start Codex CLI")))
     child.stdin.on("error", () => finish(new QuotaError("Codex CLI communication failed")))
     child.on("close", () => finish(new QuotaError("Codex CLI exited before returning quota")))
     lines.on("line", (line) => {
@@ -57,9 +59,15 @@ export function fetchCodexQuota(signal: AbortSignal, command = "codex"): Promise
       if (message.id === 1) {
         if (message.error || !message.result) return finish(new QuotaError("Codex initialization failed"))
         child.stdin.write(JSON.stringify({ method: "initialized" }) + "\n")
-        child.stdin.write(JSON.stringify({ id: 2, method: "account/rateLimits/read" }) + "\n")
+        child.stdin.write(JSON.stringify({ id: 2, method: "account/read", params: { refreshToken: false } }) + "\n")
       } else if (message.id === 2) {
-        if (message.error) return finish(new QuotaError("Codex quota unavailable; sign in with ChatGPT"))
+        if (message.error || !message.result || typeof message.result !== "object" || !("account" in message.result)) return finish(new QuotaError("Could not read Codex account"))
+        const account = message.result.account
+        if (account === null || ["apiKey", "amazonBedrock"].includes(account?.type)) return finish(new CodexUnavailableError("Codex ChatGPT account not connected"))
+        if (account?.type !== "chatgpt") return finish(new QuotaError("Unsupported Codex account"))
+        child.stdin.write(JSON.stringify({ id: 3, method: "account/rateLimits/read" }) + "\n")
+      } else if (message.id === 3) {
+        if (message.error) return finish(new QuotaError("Codex quota request failed"))
         try { finish(undefined, parseCodexQuota(message.result)) } catch (error) { finish(error as Error) }
       }
     })

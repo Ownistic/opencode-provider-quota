@@ -1,6 +1,6 @@
 import { Plugin } from "@opencode/plugin"
 import { fetchQuota, QuotaError } from "./quota"
-import { fetchCodexQuota } from "./codex"
+import { CodexUnavailableError, fetchCodexQuota } from "./codex"
 import { SyntheticQuota } from "./rpc"
 import { decimalPlaces as defaultDecimalPlaces, providerRefreshInterval, refreshInterval, showCodexResetDate as defaultShowCodexResetDate, showSeconds as defaultShowSeconds, validDecimalPlaces, validRefreshSeconds } from "./options"
 
@@ -25,6 +25,7 @@ export default Plugin.define({
         try {
           return { windows: await fetchCodexQuota(AbortSignal.any([call.signal, AbortSignal.timeout(10_000)])), status: "" }
         } catch (error) {
+          if (error instanceof CodexUnavailableError) return { status: error.message, unavailable: true }
           return { status: error instanceof QuotaError ? error.message : "Codex quota request failed" }
         }
       },
@@ -78,7 +79,7 @@ export default Plugin.define({
         try {
           const connection = await context.integration.connection.active("synthetic")
           const credential = connection ? await context.integration.connection.resolve(connection) : undefined
-          if (!credential) return { status: "Connect Synthetic in OpenCode" }
+          if (!credential) return { status: "Connect Synthetic in OpenCode", unavailable: true }
           if (credential.type !== "key" || !credential.key.trim()) return { status: "Synthetic API key required" }
           const signal = AbortSignal.any([call.signal, AbortSignal.timeout(10_000)])
           return { quota: await fetchQuota(credential.key, signal), status: "" }

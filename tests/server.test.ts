@@ -29,6 +29,17 @@ test("resolves the active Synthetic key on the server and returns only quota dat
   expect(JSON.stringify(result)).not.toContain("private-test-key")
 })
 
+test("marks Synthetic as unavailable when no connection is configured", async () => {
+  let handlers: Record<string, (...args: any[]) => Promise<any>> = {}
+  const context = {
+    options: {}, storage: { get: async () => undefined },
+    integration: { connection: { active: async () => undefined } },
+    rpc: { register: async (_definition: unknown, methods: typeof handlers) => { handlers = methods; return { dispose: async () => {}, events: { emit: async () => {} } } } },
+  } as unknown as Parameters<typeof plugin.setup>[0]
+  await plugin.setup(context)
+  expect(await handlers.get({}, { signal: new AbortController().signal })).toEqual({ status: "Connect Synthetic in OpenCode", unavailable: true })
+})
+
 test("persists refresh settings, publishes changes, and restores them on setup", async () => {
   const saved = new Map<string, unknown>()
   let handlers: Record<string, (...args: any[]) => Promise<any>> = {}
