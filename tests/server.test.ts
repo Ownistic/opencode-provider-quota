@@ -4,6 +4,22 @@ import plugin from "../src/index"
 const originalFetch = globalThis.fetch
 afterEach(() => { globalThis.fetch = originalFetch })
 
+test("uses the configured Codex executable for quota requests", async () => {
+  let handlers: Record<string, (...args: any[]) => Promise<any>> = {}
+  const context = {
+    options: { codexCommand: new URL("./fixtures/codex-mock.js", import.meta.url).pathname },
+    storage: { get: async () => undefined, set: async () => {} },
+    rpc: { register: async (_definition: unknown, methods: typeof handlers) => {
+      handlers = methods
+      return { dispose: async () => {}, events: { emit: async () => {} } }
+    } },
+  } as unknown as Parameters<typeof plugin.setup>[0]
+  await plugin.setup(context)
+  const result = await handlers.codex({}, { signal: AbortSignal.timeout(3000) })
+  expect(result.status).toBe("")
+  expect(result.windows.map((window: { remainingPercent: number }) => window.remainingPercent)).toEqual([75, 25])
+})
+
 test("resolves the active Synthetic key on the server and returns only quota data", async () => {
   let handler: ((input: unknown, context: { signal: AbortSignal }) => Promise<unknown>) | undefined
   const connection = { source: "test" }

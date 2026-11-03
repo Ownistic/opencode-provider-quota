@@ -15,7 +15,7 @@ The views hide Synthetic when no connection is configured and Codex when its CLI
 
    Replace the example path with the actual directory path. Preserve existing settings and plugin entries. The server part must be loaded through `opencode.json`; do not configure this as a CLI-only plugin.
 3. For Synthetic, connect using OpenCode's normal provider sign-in. The plugin uses the active Synthetic API-key connection from the OpenCode server; no separate environment variable is required.
-4. For Codex, install the `codex` CLI on the machine running the OpenCode server, make it available on that server's PATH, and sign in to the CLI with a ChatGPT account with Codex access (`codex login`). The plugin reads the CLI's own account, which may differ from OpenCode's OpenAI connection. API-key authentication does not provide ChatGPT plan limits. In the TUI, open a session in a sufficiently wide terminal; in Desktop, select **Provider quotas** in the session side panel.
+4. For Codex, install the `codex` CLI on the machine running the OpenCode server and sign in to the CLI with a ChatGPT account with Codex access (`codex login`). Make it available on the server's PATH, or set `codexCommand` in the plugin options to its absolute executable path. The plugin reads the CLI's own account, which may differ from OpenCode's OpenAI connection. API-key authentication does not provide ChatGPT plan limits. In the TUI, open a session in a sufficiently wide terminal; in Desktop, select **Provider quotas** in the session side panel.
 
 ## Quota settings and display
 
@@ -28,11 +28,13 @@ For an initial default before a value has been saved, replace the plugin's path 
 ```json
 {
   "package": "/absolute/path/to/opencode-provider-quota",
-  "options": { "syntheticRefreshSeconds": 30, "codexRefreshSeconds": 60, "showCodexResetDate": true, "showSeconds": true, "decimalPlaces": 2 }
+  "options": { "syntheticRefreshSeconds": 30, "codexRefreshSeconds": 60, "showCodexResetDate": true, "showSeconds": true, "decimalPlaces": 2, "codexCommand": "/absolute/path/to/codex" }
 }
 ```
 
 Each interval defaults to 60 seconds and accepts values from 10 to 3600 seconds. The date is shown by default. Saved provider values take precedence over configured defaults. An existing saved `refreshSeconds` value is used for each provider until that provider has its own saved interval; the legacy `refreshSeconds` option remains a fallback when no provider-specific default is configured. Each mounted view polls each provider independently; the countdown updates locally every second without making an additional quota request. Desktop uses the settings saved on its own OpenCode server, which may be different from the TUI's server.
+
+`codexCommand` is optional and defaults to `codex`, resolved using the OpenCode server's PATH. Set it to the executable's absolute path when the server cannot find the CLI. It is an executable path, not a shell command with arguments.
 
 The server plugin calls `GET https://api.synthetic.new/v2/quotas` with the active bearer key; Synthetic says these requests do not count against subscription limits. Only the quota result, not the key, is sent to the TUI. Weekly credits and regeneration come directly from `planWeeklyLimit` when present; they are reported as unavailable if the API omits them. A failed refresh marks the last value as stale. Redirects are rejected. If the server is remote, it uses the Synthetic connection on that server.
 

@@ -23,7 +23,8 @@ export default Plugin.define({
     const registration = await context.rpc.register(SyntheticQuota, {
       codex: async (_input, call) => {
         try {
-          return { windows: await fetchCodexQuota(AbortSignal.any([call.signal, AbortSignal.timeout(10_000)])), status: "" }
+          const command = typeof context.options.codexCommand === "string" && context.options.codexCommand.trim() ? context.options.codexCommand : "codex"
+          return { windows: await fetchCodexQuota(AbortSignal.any([call.signal, AbortSignal.timeout(10_000)]), command), status: "" }
         } catch (error) {
           if (error instanceof CodexUnavailableError) return { status: error.message, unavailable: true }
           return { status: error instanceof QuotaError ? error.message : "Codex quota request failed" }
