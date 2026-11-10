@@ -4,18 +4,21 @@ OpenCode Provider Quota is an OpenCode V2 plugin that shows Synthetic weekly cre
 
 The views hide Synthetic when no connection is configured and Codex when its CLI is missing or its active account is not a ChatGPT account. If neither is available, a connection message appears. The plugin keeps checking on each provider's refresh interval, so newly connected providers appear automatically. Other errors remain visible, and previously fetched quotas are marked stale after a failed refresh.
 
-## Install locally
+## Install
 
-1. Install dependencies with `bun install` and build the Desktop bundle with `bun run build`.
-2. Add this directory's absolute path to the existing `plugins` array in your project or global `opencode.json`:
+1. Add the package to the `plugins` array in your project or global `opencode.json`:
 
    ```json
-   { "plugins": ["/absolute/path/to/opencode-provider-quota"] }
+   {
+     "$schema": "https://opencode.ai/config.json",
+     "plugins": ["@ownistic/opencode-provider-quota"]
+   }
    ```
 
-   Replace the example path with the actual directory path. Preserve existing settings and plugin entries. The server part must be loaded through `opencode.json`; do not configure this as a CLI-only plugin.
-3. For Synthetic, connect using OpenCode's normal provider sign-in. The plugin uses the active Synthetic API-key connection from the OpenCode server; no separate environment variable is required.
-4. For Codex, install the `codex` CLI on the machine running the OpenCode server and sign in to the CLI with a ChatGPT account with Codex access (`codex login`). Make it available on the server's PATH, or set `codexCommand` in the plugin options to its absolute executable path. The plugin reads the CLI's own account, which may differ from OpenCode's OpenAI connection. API-key authentication does not provide ChatGPT plan limits. In the TUI, open a session in a sufficiently wide terminal; in Desktop, select **Provider quotas** in the session side panel.
+   Preserve existing settings and plugin entries. For Desktop, use the global `~/.config/opencode/opencode.json` (or `opencode.jsonc`). The server part must be loaded through `opencode.json`; do not configure this as a CLI-only plugin.
+2. For Synthetic, connect using OpenCode's normal provider sign-in. The plugin uses the active Synthetic API-key connection from the OpenCode server; no separate environment variable is required.
+3. For Codex, install the `codex` CLI on the machine running the OpenCode server and sign in with a ChatGPT account with Codex access (`codex login`). Make it available on the server's PATH, or set `codexCommand` in the plugin options to its absolute executable path. The plugin reads the CLI's own account, which may differ from OpenCode's OpenAI connection. API-key authentication does not provide ChatGPT plan limits.
+4. In the TUI, open a session in a sufficiently wide terminal. In Desktop, select **Provider quotas** in the session side panel.
 
 ## Quota settings and display
 
@@ -23,11 +26,11 @@ In the TUI, run `/synthetic-quota-settings` or select **Quota settings** in the 
 
 For decimal places, choose a whole number from 0 to 6; the default is 2. Codex percentages reported as whole numbers are shown without decimal places.
 
-For an initial default before a value has been saved, replace the plugin's path entry in `opencode.json` with an object:
+For an initial default before a value has been saved, replace the plugin's package entry in `opencode.json` with an object:
 
 ```json
 {
-  "package": "/absolute/path/to/opencode-provider-quota",
+  "package": "@ownistic/opencode-provider-quota",
   "options": { "syntheticRefreshSeconds": 30, "codexRefreshSeconds": 60, "showCodexResetDate": true, "showSeconds": true, "decimalPlaces": 2, "codexCommand": "/absolute/path/to/codex" }
 }
 ```
@@ -44,7 +47,11 @@ For Codex, the server starts `codex app-server` for each refresh, initializes it
 
 ## Development
 
-Run `bun test`, `bun run typecheck`, and `bun run build`. Rebuild the GUI bundle after Desktop changes.
+Run `bun install`, `bun test`, `bun run typecheck`, and `bun run build`. Rebuild the GUI bundle after Desktop changes. To test a local checkout, add its absolute directory path to `plugins` instead of the package name.
+
+### Publishing
+
+Update the version in `package.json`, then push a matching tag such as `v0.1.1`. The publish workflow runs the tests, type checks, and GUI build before publishing to npm. It uses npm trusted publishing with the GitHub Actions `NPM` environment. You can also run the workflow manually on `main` to publish the version in `package.json`.
 
 ## License
 

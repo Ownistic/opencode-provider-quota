@@ -1,10 +1,13 @@
 {
-  "name": "opencode-provider-quota",
-  "version": "0.1.0",
+  "name": "@ownistic/opencode-provider-quota",
+  "version": "0.1.1",
   "description": "Show Synthetic and Codex subscription quotas in OpenCode.",
+  "repository": { "type": "git", "url": "git+https://github.com/Ownistic/opencode-provider-quota.git" },
+  "homepage": "https://github.com/Ownistic/opencode-provider-quota#readme",
+  "bugs": { "url": "https://github.com/Ownistic/opencode-provider-quota/issues" },
   "license": "LGPL-3.0-or-later",
   "type": "module",
-  "private": true,
+  "files": ["src", "dist"],
   "exports": {
     ".": "./src/index.ts",
     "./tui": "./src/tui.tsx",
