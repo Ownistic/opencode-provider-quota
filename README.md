@@ -4,6 +4,16 @@ OpenCode Provider Quota is an OpenCode V2 plugin that shows Synthetic weekly cre
 
 The views hide Synthetic when no connection is configured and Codex when its CLI is missing or its active account is not a ChatGPT account. If neither is available, a connection message appears. The plugin keeps checking on each provider's refresh interval, so newly connected providers appear automatically. Other errors remain visible, and previously fetched quotas are marked stale after a failed refresh.
 
+## Screenshots
+
+TUI sidebar showing the Synthetic weekly credits and Codex rate-limit windows:
+
+![TUI sidebar with Synthetic and Codex quotas](docs/images/tui-sidebar.png)
+
+Quota display close-up, showing the remaining percentages and progress bars:
+
+![Synthetic and Codex quota display with progress bars](docs/images/tui-quota-display.png)
+
 ## Install
 
 1. Add the package to the `plugins` array in your project or global `opencode.json`:
